@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 extern int get_mem_limit(uint32_t *minor, size_t *limit);
 extern int get_core_limit(uint32_t *minor, size_t *limit);
@@ -117,8 +118,8 @@ int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
           (pApi->data.AllocSize.size + pApi->data.AllocSize.alignment - 1) &
           ~(pApi->data.AllocSize.alignment - 1);
 #ifndef NDEBUG
-      LOGGER(VERBOSE, "size:%lu align:%lu final:%lu", pApi->data.AllocSize.size,
-             pApi->data.AllocSize.alignment, align_size);
+      LOGGER(VERBOSE, "size:%"PRIu64" align:%"PRIu64" final:%"PRIu64, (size_t)pApi->data.AllocSize.size,
+             (size_t)pApi->data.AllocSize.alignment, (size_t)align_size);
 #endif
       pthread_mutex_lock(&gpu_device.mu);
       if (gpu_device.free_mem < align_size) {
@@ -361,7 +362,7 @@ int post_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg) {
     break;
   default:
 #ifndef NDEBUG
-    LOGGER(VERBOSE, "ioctl cmd:0x%x, size:0x%x", arg_cmd, arg_size);
+    LOGGER(VERBOSE, "ioctl cmd:0x%x, size:0x%"PRIx64, arg_cmd, arg_size);
 #endif
     break;
   }
