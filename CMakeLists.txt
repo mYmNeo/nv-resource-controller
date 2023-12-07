@@ -8,7 +8,7 @@ project(
 
 option(NV_KERNEL_VERSION "NVIDIA kernel module version")
 if(NOT NV_KERNEL_VERSION)
-  message(FATAL_ERROR "NV_KERNEL_VERSION not set")
+  message(FATAL_ERROR "NV_KERNEL_VERSION not set, available version can be found at https://github.com/NVIDIA/open-gpu-kernel-modules")
 endif()
 
 if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${NV_KERNEL_VERSION}.tar.gz)
