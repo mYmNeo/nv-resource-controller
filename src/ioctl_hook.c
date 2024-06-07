@@ -60,7 +60,8 @@ void *token_post(void *arg) {
       sem_post(&dev->tokens);
     }
 
-    launch_times[loop % 10] = atomic_load(&dev_params->launch_times);
+    launch_times[loop % LAUNCH_SAMPLES] =
+        atomic_load(&dev_params->launch_times);
     sum_launch = 0;
     for (i = 0, j = 0; i < LAUNCH_SAMPLES; i++) {
       if (launch_times[i] > 0) {
