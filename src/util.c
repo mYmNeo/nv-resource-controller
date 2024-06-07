@@ -1,6 +1,3 @@
-#include "hook.h"
-
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -8,6 +5,8 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
+
+#include "hook.h"
 
 entry_t *find_entry(entry_t *list, int size, const char *symbol) {
   int i = 0;
@@ -27,24 +26,24 @@ size_t iec_to_bytes(const char *iec_value) {
 
   value = strtod(iec_value, &endptr);
   switch (*endptr) {
-  case 'K':
-  case 'k':
-    value *= 1024UL;
-    break;
-  case 'M':
-  case 'm':
-    value *= 1024UL * 1024UL;
-    break;
-  case 'G':
-  case 'g':
-    value *= 1024UL * 1024UL * 1024UL;
-    break;
-  case 'T':
-  case 't':
-    value *= 1024UL * 1024UL * 1024UL * 1024UL;
-    break;
-  default:
-    break;
+    case 'K':
+    case 'k':
+      value *= 1024UL;
+      break;
+    case 'M':
+    case 'm':
+      value *= 1024UL * 1024UL;
+      break;
+    case 'G':
+    case 'g':
+      value *= 1024UL * 1024UL * 1024UL;
+      break;
+    case 'T':
+    case 't':
+      value *= 1024UL * 1024UL * 1024UL * 1024UL;
+      break;
+    default:
+      break;
   }
 
   return (size_t)value;

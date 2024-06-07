@@ -1,13 +1,14 @@
-#include "hook.h"
-
 #include <dlfcn.h>
 #include <link.h>
 #include <string.h>
 
+#include "hook.h"
+
 static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
                             void *data) {
   /* ElfW is a macro that creates proper typenames for the used system
-   * architecture (e.g. on a 32 bit system, ElfW(Dyn*) becomes "Elf32_Dyn*") */
+   * architecture (e.g. on a 32 bit system, ElfW(Dyn*) becomes "Elf32_Dyn*")
+   */
   ElfW(Dyn *) dyn = NULL;
   ElfW(Sym *) sym = NULL;
   ElfW(Word *) hash = NULL;
@@ -36,7 +37,8 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
     if (likely(info->dlpi_phdr[header_index].p_type != PT_DYNAMIC)) {
       continue;
     }
-    /* Further processing is only needed if the dynamic section is reached */
+    /* Further processing is only needed if the dynamic section is reached
+     */
 
     /* Get a pointer to the first entry of the dynamic section.
      * It's address is the shared lib's address + the virtual address */
@@ -78,8 +80,8 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
           sym_addr = (void *)(info->dlpi_addr + sym[sym_index].st_value);
 
           /*
-           * if sym_addr is equal to the address of the shared lib dlpi_addr,
-           * that means it is a needed symbol
+           * if sym_addr is equal to the address of the shared lib
+           * dlpi_addr, that means it is a needed symbol
            */
           if (sym_addr == (void *)info->dlpi_addr) {
             continue;
@@ -116,6 +118,17 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
                      sym_addr);
 #endif
               dlfcn_data->dlclose = sym_addr;
+            }
+            continue;
+          }
+
+          if (likely(!strcmp(sym_name, "dladdr"))) {
+            if (!dlfcn_data->dladdr) {
+#ifndef NDEBUG
+              LOGGER(VERBOSE, "dladdr old:%p, new:%p", dlfcn_data->dladdr,
+                     sym_addr);
+#endif
+              dlfcn_data->dladdr = sym_addr;
             }
             continue;
           }

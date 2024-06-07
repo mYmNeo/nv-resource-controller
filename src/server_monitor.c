@@ -1,9 +1,8 @@
-#include "hook.h"
-
 #include <dlfcn.h>
-#include <math.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "hook.h"
 
 #define DEFAULT_WAIT_DURATION_MILLSEC 100
 #define MODTIMES_PER_SEC (1000 / DEFAULT_WAIT_DURATION_MILLSEC)
@@ -19,23 +18,23 @@ typedef struct nvmlProcessUtilizationSample_st {
 } nvmlProcessUtilizationSample_t;
 
 typedef enum nvmlClockType_enum {
-  NVML_CLOCK_GRAPHICS = 0, //!< Graphics clock domain
-  NVML_CLOCK_SM = 1,       //!< SM clock domain
-  NVML_CLOCK_MEM = 2,      //!< Memory clock domain
-  NVML_CLOCK_VIDEO = 3,    //!< Video encoder/decoder clock domain
+  NVML_CLOCK_GRAPHICS = 0,  //!< Graphics clock domain
+  NVML_CLOCK_SM = 1,        //!< SM clock domain
+  NVML_CLOCK_MEM = 2,       //!< Memory clock domain
+  NVML_CLOCK_VIDEO = 3,     //!< Video encoder/decoder clock domain
 
   // Keep this last
-  NVML_CLOCK_COUNT //!< Count of clock types
+  NVML_CLOCK_COUNT  //!< Count of clock types
 } nvmlClockType_t;
 
 typedef enum nvmlClockId_enum {
-  NVML_CLOCK_ID_CURRENT = 0,            //!< Current actual clock value
-  NVML_CLOCK_ID_APP_CLOCK_TARGET = 1,   //!< Target application clock
-  NVML_CLOCK_ID_APP_CLOCK_DEFAULT = 2,  //!< Default application clock target
-  NVML_CLOCK_ID_CUSTOMER_BOOST_MAX = 3, //!< OEM-defined maximum clock rate
+  NVML_CLOCK_ID_CURRENT = 0,             //!< Current actual clock value
+  NVML_CLOCK_ID_APP_CLOCK_TARGET = 1,    //!< Target application clock
+  NVML_CLOCK_ID_APP_CLOCK_DEFAULT = 2,   //!< Default application clock target
+  NVML_CLOCK_ID_CUSTOMER_BOOST_MAX = 3,  //!< OEM-defined maximum clock rate
 
   // Keep this last
-  NVML_CLOCK_ID_COUNT //!< Count of Clock Ids.
+  NVML_CLOCK_ID_COUNT  //!< Count of Clock Ids.
 } nvmlClockId_t;
 
 typedef struct {

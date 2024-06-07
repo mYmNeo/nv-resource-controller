@@ -1,9 +1,9 @@
-#include "hook.h"
-
 #include <errno.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "hook.h"
 
 extern entry_t *find_entry(entry_t *list, int size, const char *symbol);
 extern device_prop_t *get_device_prop(void);
@@ -121,12 +121,11 @@ static int rate_limit() {
   return ret;
 }
 
-static int
-HOOK_NAME(cuLaunchKernel)(void *f, unsigned int gridDimX, unsigned int gridDimY,
-                          unsigned int gridDimZ, unsigned int blockDimX,
-                          unsigned int blockDimY, unsigned int blockDimZ,
-                          unsigned int sharedMemBytes, void *hStream,
-                          void **kernelParams, void **extra) {
+static int HOOK_NAME(cuLaunchKernel)(
+    void *f, unsigned int gridDimX, unsigned int gridDimY,
+    unsigned int gridDimZ, unsigned int blockDimX, unsigned int blockDimY,
+    unsigned int blockDimZ, unsigned int sharedMemBytes, void *hStream,
+    void **kernelParams, void **extra) {
   int ret = 0;
 
   ret = rate_limit();

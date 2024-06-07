@@ -5,20 +5,19 @@ typedef int (*cuda_sym_t)();
 
 #define CUDA_ENTRY_ENUM(x) ENTRY_##x
 
-#define CUDA_FIND_ENTRY(table, sym)                                            \
+#define CUDA_FIND_ENTRY(table, sym) \
   ({ (table)[CUDA_ENTRY_ENUM(sym)].real_pfn; })
 
-#define CUDA_ENTRY_CALL(table, sym, ...)                                       \
-  ({                                                                           \
-    cuda_sym_t _entry = CUDA_FIND_ENTRY(table, sym);                           \
-    BUG_ON(!_entry);                                                           \
-    _entry(__VA_ARGS__);                                                       \
+#define CUDA_ENTRY_CALL(table, sym, ...)             \
+  ({                                                 \
+    cuda_sym_t _entry = CUDA_FIND_ENTRY(table, sym); \
+    BUG_ON(!_entry);                                 \
+    _entry(__VA_ARGS__);                             \
   })
 
 #define HOOK_NAME(NAME) hook_##NAME
 
-#define HOOK_FUNC(NAME)                                                        \
-  { .name = #NAME, .hook_pfn = HOOK_NAME(NAME) }
+#define HOOK_FUNC(NAME) {.name = #NAME, .hook_pfn = HOOK_NAME(NAME)}
 
 /*
  * enum order should keep consistant with <cuda_hook_funcs_data> in hook.c

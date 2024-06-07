@@ -1,9 +1,9 @@
-#include "hook.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "hook.h"
 
 static const char *CUDA_MEM_LIMIT = "CUDA_MEM_LIMIT";
 static const char *CUDA_CORE_LIMIT = "CUDA_CORE_LIMIT";

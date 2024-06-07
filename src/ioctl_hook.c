@@ -1,20 +1,19 @@
-#include "hook.h"
-
-#include "ctrl/ctrl2080/ctrl2080fb.h"
-#include "gpu/mem_mgr/rm_page_size.h"
-#include "nv_escape.h"
-#include "nvos.h"
-#include "nvstatus.h"
-#include "nvtypes.h"
-
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <inttypes.h>
+
+#include "ctrl/ctrl2080/ctrl2080fb.h"
+#include "gpu/mem_mgr/rm_page_size.h"
+#include "hook.h"
+#include "nv_escape.h"
+#include "nvos.h"
+#include "nvstatus.h"
+#include "nvtypes.h"
 
 extern int get_mem_limit(uint32_t *minor, size_t *limit);
 extern int get_core_limit(uint32_t *minor, size_t *limit);
@@ -112,36 +111,37 @@ int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
 #endif
 
   switch (pApi->function) {
-  case NVOS32_FUNCTION_ALLOC_SIZE:
-    if (likely(pApi->data.AllocSize.alignment != RM_PAGE_SIZE_INVALID)) {
-      align_size =
-          (pApi->data.AllocSize.size + pApi->data.AllocSize.alignment - 1) &
-          ~(pApi->data.AllocSize.alignment - 1);
+    case NVOS32_FUNCTION_ALLOC_SIZE:
+      if (likely(pApi->data.AllocSize.alignment != RM_PAGE_SIZE_INVALID)) {
+        align_size =
+            (pApi->data.AllocSize.size + pApi->data.AllocSize.alignment - 1) &
+            ~(pApi->data.AllocSize.alignment - 1);
 #ifndef NDEBUG
-      LOGGER(VERBOSE, "size:%"PRIu64" align:%"PRIu64" final:%"PRIu64, (size_t)pApi->data.AllocSize.size,
-             (size_t)pApi->data.AllocSize.alignment, (size_t)align_size);
+        LOGGER(VERBOSE, "size:%" PRIu64 " align:%" PRIu64 " final:%" PRIu64,
+               (size_t)pApi->data.AllocSize.size,
+               (size_t)pApi->data.AllocSize.alignment, (size_t)align_size);
 #endif
+        pthread_mutex_lock(&gpu_device.mu);
+        if (gpu_device.free_mem < align_size) {
+          pApi->status = NV_ERR_NO_MEMORY;
+          pApi->total = gpu_device.total_mem;
+          pApi->free = gpu_device.free_mem;
+          *success = 1;
+        }
+        pthread_mutex_unlock(&gpu_device.mu);
+      }
+      break;
+    case NVOS32_FUNCTION_INFO:
       pthread_mutex_lock(&gpu_device.mu);
       if (gpu_device.free_mem < align_size) {
         pApi->status = NV_ERR_NO_MEMORY;
         pApi->total = gpu_device.total_mem;
         pApi->free = gpu_device.free_mem;
-        *success = 1;
       }
       pthread_mutex_unlock(&gpu_device.mu);
-    }
-    break;
-  case NVOS32_FUNCTION_INFO:
-    pthread_mutex_lock(&gpu_device.mu);
-    if (gpu_device.free_mem < align_size) {
-      pApi->status = NV_ERR_NO_MEMORY;
-      pApi->total = gpu_device.total_mem;
-      pApi->free = gpu_device.free_mem;
-    }
-    pthread_mutex_unlock(&gpu_device.mu);
-    break;
-  default:
-    break;
+      break;
+    default:
+      break;
   }
 
 finish:
@@ -207,15 +207,15 @@ int post_rm_control_fb_get_info(void *params, size_t param_size) {
   for (i = 0; i < pParams->fbInfoListSize; i++) {
     info = ((NV2080_CTRL_FB_INFO *)(pParams->fbInfoList) + i);
     switch (info->index) {
-    case NV2080_CTRL_FB_INFO_INDEX_TOTAL_RAM_SIZE:
-    case NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE:
-      info->data = gpu_device.total_mem >> 10;
-      break;
-    case NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE:
-      info->data = gpu_device.free_mem >> 10;
-      break;
-    default:
-      break;
+      case NV2080_CTRL_FB_INFO_INDEX_TOTAL_RAM_SIZE:
+      case NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE:
+        info->data = gpu_device.total_mem >> 10;
+        break;
+      case NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE:
+        info->data = gpu_device.free_mem >> 10;
+        break;
+      default:
+        break;
     }
   }
   pthread_mutex_unlock(&gpu_device.mu);
@@ -234,15 +234,15 @@ int post_rm_control_fb_get_info_v2(void *params, size_t param_size) {
     info = &pParams->fbInfoList[i];
 
     switch (info->index) {
-    case NV2080_CTRL_FB_INFO_INDEX_TOTAL_RAM_SIZE:
-    case NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE:
-      info->data = gpu_device.total_mem >> 10;
-      break;
-    case NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE:
-      info->data = gpu_device.free_mem >> 10;
-      break;
-    default:
-      break;
+      case NV2080_CTRL_FB_INFO_INDEX_TOTAL_RAM_SIZE:
+      case NV2080_CTRL_FB_INFO_INDEX_HEAP_SIZE:
+        info->data = gpu_device.total_mem >> 10;
+        break;
+      case NV2080_CTRL_FB_INFO_INDEX_HEAP_FREE:
+        info->data = gpu_device.free_mem >> 10;
+        break;
+      default:
+        break;
     }
   }
   pthread_mutex_unlock(&gpu_device.mu);
@@ -268,19 +268,19 @@ int post_rm_control(uint32_t minor, size_t arg_size, void *arg) {
   }
 
   switch (pApi->cmd) {
-    /* 0x20801301 */
-  case NV2080_CTRL_CMD_FB_GET_INFO:
-    ret = post_rm_control_fb_get_info(pApi->params, pApi->paramsSize);
-    break;
-    /* 0x20801303 */
-  case NV2080_CTRL_CMD_FB_GET_INFO_V2:
-    ret = post_rm_control_fb_get_info_v2(pApi->params, pApi->paramsSize);
-    break;
-  default:
+      /* 0x20801301 */
+    case NV2080_CTRL_CMD_FB_GET_INFO:
+      ret = post_rm_control_fb_get_info(pApi->params, pApi->paramsSize);
+      break;
+      /* 0x20801303 */
+    case NV2080_CTRL_CMD_FB_GET_INFO_V2:
+      ret = post_rm_control_fb_get_info_v2(pApi->params, pApi->paramsSize);
+      break;
+    default:
 #ifndef NDEBUG
-    LOGGER(VERBOSE, "rm cmd:0x%x", pApi->cmd);
+      LOGGER(VERBOSE, "rm cmd:0x%x", pApi->cmd);
 #endif
-    break;
+      break;
   }
 
 finish:
@@ -348,23 +348,23 @@ int post_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg) {
   arg_cmd = _IOC_NR(cmd);
 
   switch (arg_cmd) {
-    /* 0x4a */
-  case NV_ESC_RM_VID_HEAP_CONTROL:
-    ret = post_rm_vid_heap_control(minor, arg_size, arg);
-    break;
-    /* 0x2a */
-  case NV_ESC_RM_CONTROL:
-    ret = post_rm_control(minor, arg_size, arg);
-    break;
-    /* 0x29 */
-  case NV_ESC_RM_FREE:
-    ret = post_rm_free(minor, arg_size, arg);
-    break;
-  default:
+      /* 0x4a */
+    case NV_ESC_RM_VID_HEAP_CONTROL:
+      ret = post_rm_vid_heap_control(minor, arg_size, arg);
+      break;
+      /* 0x2a */
+    case NV_ESC_RM_CONTROL:
+      ret = post_rm_control(minor, arg_size, arg);
+      break;
+      /* 0x29 */
+    case NV_ESC_RM_FREE:
+      ret = post_rm_free(minor, arg_size, arg);
+      break;
+    default:
 #ifndef NDEBUG
-    LOGGER(VERBOSE, "ioctl cmd:0x%x, size:0x%"PRIx64, arg_cmd, arg_size);
+      LOGGER(VERBOSE, "ioctl cmd:0x%x, size:0x%" PRIx64, arg_cmd, arg_size);
 #endif
-    break;
+      break;
   }
 
 finish:

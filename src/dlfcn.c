@@ -1,13 +1,14 @@
-#include "hook.h"
-
 #include <dlfcn.h>
 #include <link.h>
+
+#include "hook.h"
 
 static dlfcn_t __dlfcn_data = {
     .once = PTHREAD_ONCE_INIT,
     .dlopen = NULL,
     .dlsym = NULL,
     .dlclose = NULL,
+    .dladdr = NULL,
     .ioctl = NULL,
 };
 
@@ -25,31 +26,62 @@ dlfcn_t *get_dlfcn() { return &__dlfcn_data; }
 
 static void *get_next_symbol(void *addr, const char *symbol) {
   void *handle = NULL;
-  struct link_map *map = NULL, *self = NULL;
+  struct link_map *map = NULL, *self = NULL, *temp_map = NULL;
   ElfW(Addr) caller = (ElfW(Addr))addr;
+  const char *self_path = NULL;
+  Dl_info dl_info;
+  int index = 0;
 
   BUG_ON(!__dlfcn_data.dlopen);
   BUG_ON(!__dlfcn_data.dlsym);
   BUG_ON(!__dlfcn_data.dlclose);
+  BUG_ON(!__dlfcn_data.dladdr);
 
-  self = __dlfcn_data.dlopen(LIBRARY_NAME, RTLD_NOLOAD | RTLD_LAZY);
+  if (__dlfcn_data.dladdr(get_next_symbol, &dl_info)) {
+    LOGGER(DETAIL, "current shared object is located at: %s",
+           dl_info.dli_fname);
+    self_path = dl_info.dli_fname;
+  } else {
+    LOGGER(DETAIL, "This shared object is not found, use name: %s",
+           LIBRARY_NAME);
+    self_path = LIBRARY_NAME;
+  }
+
+  self = __dlfcn_data.dlopen(self_path, RTLD_NOLOAD | RTLD_LAZY);
   if (unlikely(!self)) {
-    LOGGER(FATAL, "can't find %s", LIBRARY_NAME);
+    LOGGER(FATAL, "can't find %s", self_path);
     return NULL;
   }
 
 #ifndef NDEBUG
-  LOGGER(VERBOSE, "find next %s", symbol);
+  LOGGER(VERBOSE, "addr: %p, find next %s", addr, symbol);
 #endif
   for (map = self; map; map = map->l_next) {
 #ifndef NDEBUG
-    LOGGER(VERBOSE, "find next %s from %s", symbol, map->l_name);
+    LOGGER(VERBOSE, "find next %s(%p) from %s, l_addr: %p", symbol, map,
+           map->l_name, map->l_addr);
 #endif
     if (unlikely(caller < map->l_addr)) {
       continue;
     }
 
-    handle = __dlfcn_data.dlsym(map, symbol);
+    // if caller > map->l_addr for the first time, we are at linkmap which
+    // calls dlsym. so skip it.
+    if (index < 1) {
+      index++;
+      continue;
+    }
+
+    // we should do temprary dlopen to initialize link_map properly
+    temp_map = __dlfcn_data.dlopen(map->l_name, RTLD_NOLOAD | RTLD_LAZY);
+    if (unlikely(!temp_map)) {
+      LOGGER(FATAL, "can't find %s", map->l_name);
+      return NULL;
+    }
+
+    handle = __dlfcn_data.dlsym(temp_map, symbol);
+    __dlfcn_data.dlclose(temp_map);
+
     if (likely(handle)) {
 #ifndef NDEBUG
       LOGGER(VERBOSE, "found next %s at %p", symbol, handle);
