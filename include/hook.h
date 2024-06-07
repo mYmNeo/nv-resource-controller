@@ -25,7 +25,10 @@
     _ret_addr;                                                      \
   })
 
+#if !defined(offsetof)
 #define offsetof(type, member) ((size_t) & ((type *)0)->member)
+#endif
+
 #define container_of(ptr, type, member)                \
   ({                                                   \
     const typeof(((type *)0)->member) *__mptr =        \
@@ -110,18 +113,18 @@ typedef struct {
 } device_mem_t;
 
 typedef struct {
-  int add_per_cycle;
+  atomic_int add_per_cycle;
   int core_limit;
   int mod_times;
   int avg_launchs[2];
-  int launch_idx;
+  atomic_int launch_idx;
 
   /* thread data */
-  uint32_t launch_times;
+  atomic_uint launch_times;
 } token_param_t;
 
 typedef struct {
-  int changed;
+  atomic_int changed;
   int inited;
   struct timespec wait_time;
   token_param_t params;

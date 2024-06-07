@@ -59,7 +59,7 @@ static void *get_next_symbol(void *addr, const char *symbol) {
   for (map = self; map; map = map->l_next) {
 #ifndef NDEBUG
     LOGGER(VERBOSE, "find next %s(%p) from %s, l_addr: %p", symbol, map,
-           map->l_name, map->l_addr);
+           map->l_name, (void *)map->l_addr);
 #endif
     if (unlikely(caller < map->l_addr)) {
       continue;

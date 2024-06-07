@@ -69,7 +69,7 @@ int get_device_number(int fd, uint32_t *major, uint32_t *minor) {
 
   *major = 0;
   *minor = 0;
-  if (unlikely(st.st_mode & S_IFMT != S_IFCHR)) {
+  if (unlikely((st.st_mode & S_IFMT) != S_IFCHR)) {
     return -1;
   }
 

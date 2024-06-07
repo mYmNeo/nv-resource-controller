@@ -220,8 +220,8 @@ int get_gpu_util(nvml_lib_t *hdr, void *dev, const char *cgroup_id,
   int ret = 0;
 
   last_seen = last_time->tv_sec * 1000UL * 1000UL + last_time->tv_nsec / 1000UL;
-  ret = hdr->nvmlDeviceGetProcessUtilization(dev, samples, &sample_size,
-                                             last_seen);
+  ret = hdr->nvmlDeviceGetProcessUtilization(
+      dev, samples, (unsigned int *)&sample_size, last_seen);
   if (unlikely(ret)) {
     /* not NOT_FOUND error */
     if (ret == 6) {
