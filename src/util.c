@@ -199,6 +199,7 @@ int wait_duration(struct timespec *interval) {
   int ret = 0;
   int err = 0;
 
+  req_time.tv_sec = interval->tv_sec;
   req_time.tv_nsec = interval->tv_nsec;
   ret = nanosleep(&req_time, &remain);
   if (ret) {

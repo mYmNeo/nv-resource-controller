@@ -305,7 +305,7 @@ void watch_dog(nvml_lib_t *hdr, uint32_t minor, const char *cgroup_id,
   LOGGER(VERBOSE, "clock: %u:%u", cur_clock, max_clock);
 
   while (1) {
-    clock_gettime(CLOCK_MONOTONIC, &last_time);
+    clock_gettime(CLOCK_REALTIME, &last_time);
     wait_duration(&wait_time);
     util = get_gpu_util(hdr, dev, cgroup_id, samples, sample_size, &last_time);
     if (unlikely(util < 0)) {
