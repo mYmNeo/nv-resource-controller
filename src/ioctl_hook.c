@@ -8,7 +8,6 @@
 #include <unistd.h>
 
 #include "ctrl/ctrl2080/ctrl2080fb.h"
-#include "gpu/mem_mgr/rm_page_size.h"
 #include "hook.h"
 #include "nv_escape.h"
 #include "nvos.h"
@@ -107,21 +106,13 @@ int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
     goto finish;
   }
 
-#ifndef NDEBUG
-  LOGGER(DETAIL, "function %d", pApi->function);
-#endif
-
   switch (pApi->function) {
     case NVOS32_FUNCTION_ALLOC_SIZE:
-      if (likely(pApi->data.AllocSize.alignment != RM_PAGE_SIZE_INVALID)) {
+      if (likely(pApi->data.AllocSize.alignment != 0)) {
         align_size =
             (pApi->data.AllocSize.size + pApi->data.AllocSize.alignment - 1) &
             ~(pApi->data.AllocSize.alignment - 1);
-#ifndef NDEBUG
-        LOGGER(VERBOSE, "size:%" PRIu64 " align:%" PRIu64 " final:%" PRIu64,
-               (size_t)pApi->data.AllocSize.size,
-               (size_t)pApi->data.AllocSize.alignment, (size_t)align_size);
-#endif
+
         pthread_mutex_lock(&gpu_device.mu);
         if (gpu_device.free_mem < align_size) {
           pApi->status = NV_ERR_NO_MEMORY;
@@ -172,7 +163,7 @@ int post_rm_vid_heap_control(uint32_t minor, size_t arg_size, void *arg) {
     goto finish;
   }
 
-  if (unlikely(pApi->data.AllocSize.alignment == RM_PAGE_SIZE_INVALID)) {
+  if (unlikely(pApi->data.AllocSize.alignment == 0)) {
     goto finish;
   }
 
@@ -278,9 +269,6 @@ int post_rm_control(uint32_t minor, size_t arg_size, void *arg) {
       ret = post_rm_control_fb_get_info_v2(pApi->params, pApi->paramsSize);
       break;
     default:
-#ifndef NDEBUG
-      LOGGER(VERBOSE, "rm cmd:0x%x", pApi->cmd);
-#endif
       break;
   }
 
@@ -362,9 +350,6 @@ int post_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg) {
       ret = post_rm_free(minor, arg_size, arg);
       break;
     default:
-#ifndef NDEBUG
-      LOGGER(VERBOSE, "ioctl cmd:0x%x, size:0x%" PRIx64, arg_cmd, arg_size);
-#endif
       break;
   }
 

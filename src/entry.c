@@ -86,15 +86,9 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
           if (sym_addr == (void *)info->dlpi_addr) {
             continue;
           }
-#ifndef NDEBUG
-          LOGGER(DETAIL, "%s sym %s addr %p", libname, sym_name, sym_addr);
-#endif
+
           if (likely(!strcmp(sym_name, "dlsym"))) {
             if (!dlfcn_data->dlsym) {
-#ifndef NDEBUG
-              LOGGER(VERBOSE, "dlsym old:%p, new:%p", dlfcn_data->dlsym,
-                     sym_addr);
-#endif
               dlfcn_data->dlsym = sym_addr;
             }
             continue;
@@ -102,10 +96,6 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
 
           if (likely(!strcmp(sym_name, "dlopen"))) {
             if (!dlfcn_data->dlopen) {
-#ifndef NDEBUG
-              LOGGER(VERBOSE, "dlopen old:%p, new:%p", dlfcn_data->dlopen,
-                     sym_addr);
-#endif
               dlfcn_data->dlopen = sym_addr;
             }
             continue;
@@ -113,10 +103,6 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
 
           if (likely(!strcmp(sym_name, "dlclose"))) {
             if (!dlfcn_data->dlclose) {
-#ifndef NDEBUG
-              LOGGER(VERBOSE, "dlclose old:%p, new:%p", dlfcn_data->dlclose,
-                     sym_addr);
-#endif
               dlfcn_data->dlclose = sym_addr;
             }
             continue;
@@ -124,10 +110,6 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
 
           if (likely(!strcmp(sym_name, "dladdr"))) {
             if (!dlfcn_data->dladdr) {
-#ifndef NDEBUG
-              LOGGER(VERBOSE, "dladdr old:%p, new:%p", dlfcn_data->dladdr,
-                     sym_addr);
-#endif
               dlfcn_data->dladdr = sym_addr;
             }
             continue;
@@ -135,10 +117,6 @@ static int retrieve_symbols(struct dl_phdr_info *info, size_t size,
 
           if (likely(!strcmp(sym_name, "ioctl"))) {
             if (!dlfcn_data->ioctl) {
-#ifndef NDEBUG
-              LOGGER(VERBOSE, "ioctl old:%p, new:%p", dlfcn_data->ioctl,
-                     sym_addr);
-#endif
               dlfcn_data->ioctl = sym_addr;
             }
             continue;

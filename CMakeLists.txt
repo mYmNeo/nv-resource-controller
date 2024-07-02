@@ -8,7 +8,10 @@ project(
 
 option(NV_KERNEL_VERSION "NVIDIA kernel module version")
 if(NOT NV_KERNEL_VERSION)
-  message(FATAL_ERROR "NV_KERNEL_VERSION not set, available version can be found at https://github.com/NVIDIA/open-gpu-kernel-modules")
+  message(
+    FATAL_ERROR
+      "NV_KERNEL_VERSION not set, available version can be found at https://github.com/NVIDIA/open-gpu-kernel-modules"
+  )
 endif()
 
 if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/${NV_KERNEL_VERSION}.tar.gz)
@@ -23,7 +26,9 @@ file(ARCHIVE_EXTRACT INPUT ${CMAKE_CURRENT_BINARY_DIR}/${NV_KERNEL_VERSION}.tar.
      ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -Wunused -Werror -Wno-deprecated-non-prototype -D_GNU_SOURCE")
+set(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -fvisibility=hidden -Wunused -Werror -Wno-deprecated-non-prototype -D_GNU_SOURCE"
+)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -s")
 
@@ -41,7 +46,6 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/common/sdk/nvidia/inc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/nvidia/inc/kernel>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/nvidia/arch/nvalloc/unix/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/common/sdk/nvidia/inc>"
 )
 
 target_link_libraries(cuda_hook PRIVATE ${CMAKE_DL_LIBS} Threads::Threads -lrt)
