@@ -125,34 +125,27 @@ done:
   return ret;
 }
 
-void *create_shm_addr(uint32_t minor, pid_t pid, size_t data_size) {
-  char path[PATH_MAX] = {0};
-  char cgroup_id[MAX_CGROUP_ID_LEN] = {0};
+void *create_shm_addr(const char *shm_path, size_t data_size,
+                      share_data_t *share_data) {
   int ret = 0;
   int fd = -1;
   int first = 1;
   void *addr = NULL;
 
-  ret = get_cgroup_id(pid, cgroup_id, sizeof(cgroup_id));
-  if (unlikely(ret < 0)) {
-    LOGGER(ERROR, "get cgroup id failed");
-    goto done;
-  }
-
-  sprintf(path, HOOK_SHM_PATH_PATTERN, minor, cgroup_id);
-  fd = shm_open(path, O_EXCL | O_RDWR | O_CREAT, 0666);
+  fd = shm_open(shm_path, O_EXCL | O_RDWR | O_CREAT, 0666);
   if (unlikely(fd < 0)) {
     if (errno != EEXIST) {
       goto done;
     }
 
-    fd = shm_open(path, O_RDWR, 0666);
+    fd = shm_open(shm_path, O_RDWR, 0666);
     if (unlikely(fd < 0)) {
       LOGGER(ERROR, "open shm %d", errno);
       goto done;
     }
     first = 0;
   }
+  share_data->fd = fd;
 
   if (likely(first)) {
     ret = ftruncate(fd, data_size);
@@ -169,25 +162,7 @@ void *create_shm_addr(uint32_t minor, pid_t pid, size_t data_size) {
   if (likely(first)) {
     memset(addr, 0x0, data_size);
   }
-done:
-  return addr;
-}
-
-void *get_shm_addr(uint32_t minor, const char *cgroup_id, size_t data_size) {
-  int fd = -1;
-  char path[128] = {0};
-  void *addr = NULL;
-
-  sprintf(path, HOOK_SHM_PATH_PATTERN, minor, cgroup_id);
-  fd = shm_open(path, O_RDWR, 0666);
-  if (unlikely(fd < 0)) {
-    goto done;
-  }
-
-  addr = mmap(NULL, data_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if (unlikely(addr == MAP_FAILED)) {
-    goto done;
-  }
+  share_data->addr = addr;
 
 done:
   return addr;

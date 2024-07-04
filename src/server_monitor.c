@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "extern.h"
 #include "hook.h"
 
 #define DEFAULT_WAIT_DURATION_MILLSEC 100
@@ -47,11 +48,6 @@ typedef struct {
   int (*nvmlDeviceGetClock)(void *dev, int clockType, int clockId,
                             unsigned int *clockMHz);
 } nvml_lib_t;
-
-extern void *get_shm_addr(uint32_t minor, const char *cgroup_id,
-                          size_t data_size);
-extern int wait_duration(struct timespec *interval);
-extern int get_cgroup_id(pid_t pid, char *short_id, size_t id_len);
 
 int init_handle(nvml_lib_t *hdr) {
   void *_hdr = NULL;
@@ -267,6 +263,8 @@ void watch_dog(nvml_lib_t *hdr, uint32_t minor, const char *cgroup_id,
   struct timespec last_time = {0, 0};
   token_attr_t *attr = NULL;
   uint32_t cur_clock = 0, max_clock = 0;
+  char path[PATH_MAX] = {0};
+  share_data_t attr_share_data;
 
   ret = hdr->nvmlDeviceGetHandleByIndex(minor, &dev);
   if (unlikely(ret)) {
@@ -274,7 +272,8 @@ void watch_dog(nvml_lib_t *hdr, uint32_t minor, const char *cgroup_id,
     return;
   }
 
-  attr = get_shm_addr(minor, cgroup_id, sizeof(token_attr_t));
+  sprintf(path, HOOK_SHM_PATH_PATTERN, minor, cgroup_id);
+  attr = create_shm_addr(path, sizeof(token_attr_t), &attr_share_data);
   if (unlikely(!attr)) {
     LOGGER(ERROR, "can't find shm addr");
     return;

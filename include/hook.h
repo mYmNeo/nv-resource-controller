@@ -107,10 +107,21 @@ typedef struct {
 } dlfcn_t;
 
 typedef struct {
+  int fd;
+  void *addr;
+} share_data_t;
+
+typedef struct {
   uint32_t object;
   size_t size;
   struct list_head node;
 } device_mem_t;
+
+typedef struct {
+  uint32_t object;
+  uint32_t device_id;
+  struct list_head node;
+} rm_mem_t;
 
 typedef struct {
   atomic_int add_per_cycle;
@@ -132,25 +143,33 @@ typedef struct {
 } token_attr_t;
 
 typedef struct {
+  pid_t pid;
+  size_t total_mem;
+  size_t free_mem;
+} fb_info_t;
+
+typedef struct {
   pthread_mutex_t mu;
   pthread_t tid;
   uint32_t major;
   uint32_t minor;
-  size_t total_mem;
-  size_t free_mem;
+  fb_info_t *fb_info;
   size_t alloc_mem;
   sem_t tokens;
   token_attr_t *attr;
   int mem_limited;
   int core_limited;
   pthread_once_t once;
-  struct list_head mem_list;
+  struct list_head heap_mem_list;
+  struct list_head rm_mem_list;
 } device_prop_t;
 
 #define NVIDIA_DEVICE_MAJOR 195
 #define NVIDIA_CTL_MINOR 0xFF
 /* cuda_hook.<minor>.<cgroup_id> */
 #define HOOK_SHM_PATH_PATTERN "/cuda_hook.%x.%s"
+/* cuda_hook_fb.%x */
+#define HOOK_SHM_FB_MEM_PATH_PATTERN "/cuda_hook_fb.%x"
 #define MAX_CGROUP_ID_LEN 16
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
