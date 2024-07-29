@@ -16,6 +16,10 @@
 #include "nvos.h"
 #include "nvstatus.h"
 #include "nvtypes.h"
+// this file must be the last include file
+// clang-format off
+#include "generated/g_allclasses.h"
+// clang-format on
 
 static device_prop_t gpu_device = {
     .mu = PTHREAD_MUTEX_INITIALIZER,
@@ -217,10 +221,10 @@ int post_rm_alloc(uint32_t minor, size_t arg_size, void *arg) {
 #endif
 
   switch (pApi->hClass) {
-    case 0x80:
+    case NV01_DEVICE_0:
       ret = post_device_rm_alloc(pApi);
       break;
-    case 0x2080:
+    case NV20_SUBDEVICE_0:
       ret = post_ctrl_rm_alloc(pApi);
       break;
     default:

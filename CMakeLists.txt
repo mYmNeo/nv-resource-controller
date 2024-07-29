@@ -43,6 +43,7 @@ target_include_directories(
   cuda_hook
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/nvidia>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/common/sdk/nvidia/inc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/nvidia/inc/kernel>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/open-gpu-kernel-modules-${NV_KERNEL_VERSION}/src/nvidia/arch/nvalloc/unix/include>"
