@@ -375,7 +375,7 @@ int __get_fb_info(int device_id, size_t *total_mem, size_t *free_mem) {
   int ret = 0;
   char path[PATH_MAX] = {0};
   share_data_t fb_share_data;
-  struct stat buf;
+  char lpath[PATH_MAX] = {0};
   fb_info_t *fb_info = NULL;
 
   *total_mem = 0;
@@ -394,8 +394,8 @@ int __get_fb_info(int device_id, size_t *total_mem, size_t *free_mem) {
   *total_mem = fb_info->total_mem >> 10;
 
   /* if fb_info->pid existed, use its free_mem value */
-  sprintf(path, "/proc/%d", fb_info->pid);
-  if (stat(path, &buf) == 0) {
+  sprintf(path, "/proc/%d/exe", fb_info->pid);
+  if (readlink(path, lpath, PATH_MAX - 1) == 0) {
     *free_mem = fb_info->free_mem >> 10;
   }
 
@@ -693,8 +693,8 @@ void _init_device_prop() {
   need_init = fb_info->pid == 0 ? 1 : 0;
   if (!need_init) {
     /* if fb_info->pid not existed, initialize fb info */
-    sprintf(path, "/proc/%d", fb_info->pid);
-    ret = stat(path, &buf);
+    sprintf(path, "/proc/%d/exe", fb_info->pid);
+    ret = lstat(path, &buf);
     if (ret < 0) {
       need_init = errno == ENOENT ? 1 : 0;
     }
