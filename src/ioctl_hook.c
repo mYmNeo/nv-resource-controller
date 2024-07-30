@@ -75,37 +75,12 @@ void *token_post(void *arg) {
   }
 }
 
-int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
-              int *success) {
-  int ret = 0;
-  int arg_cmd = 0;
-  size_t arg_size = 0;
+int pre_vid_heap_alloc(uint32_t cmd, void *arg, int *success) {
   NVOS32_PARAMETERS *pApi = arg;
   size_t align_size = 0;
+  int ret = 0;
 
   *success = 0;
-  if (unlikely(major != NVIDIA_DEVICE_MAJOR)) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
-  arg_size = _IOC_SIZE(cmd);
-  arg_cmd = _IOC_NR(cmd);
-
-  if (unlikely(arg_cmd != NV_ESC_RM_VID_HEAP_CONTROL)) {
-    goto finish;
-  }
-
-  if (unlikely(minor != NVIDIA_CTL_MINOR)) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
-  if (unlikely(arg_size != sizeof(NVOS32_PARAMETERS))) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
   switch (pApi->function) {
     case NVOS32_FUNCTION_ALLOC_SIZE:
       if (likely(pApi->data.AllocSize.alignment != 0)) {
@@ -136,7 +111,61 @@ int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
       break;
   }
 
-finish:
+  return ret;
+}
+
+int pre_rm_alloc(uint32_t cmd, void *arg, int *success) {
+  NVOS21_PARAMETERS *pApi = arg;
+  NV_MEMORY_ALLOCATION_PARAMS *params = NULL;
+  size_t align_size = 0;
+  int ret = 0;
+
+  *success = 0;
+
+#ifndef NDEBUG
+  LOGGER(VERBOSE, "pre rm alloc: %p, parent: %p, root: %p, class: 0x%x",
+         pApi->hObjectNew, pApi->hObjectParent, pApi->hRoot, pApi->hClass);
+
+#endif
+  switch (pApi->hClass) {
+    case NV01_MEMORY_LOCAL_USER:
+      params = pApi->pAllocParms;
+      if (likely(params->alignment != 0)) {
+        align_size =
+            (params->size + params->alignment - 1) & ~(params->alignment - 1);
+
+        pthread_mutex_lock(&gpu_device.mu);
+        if (gpu_device.fb_info->free_mem < align_size) {
+          pApi->status = NV_ERR_NO_MEMORY;
+          *success = 1;
+        }
+        pthread_mutex_unlock(&gpu_device.mu);
+      }
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}
+
+int pre_ioctl(uint32_t major, uint32_t minor, uint32_t cmd, void *arg,
+              int *success) {
+  int arg_cmd = 0;
+  int ret = 0;
+
+  arg_cmd = _IOC_NR(cmd);
+  switch (arg_cmd) {
+    case NV_ESC_RM_VID_HEAP_CONTROL:
+      ret = pre_vid_heap_alloc(cmd, arg, success);
+      break;
+    case NV_ESC_RM_ALLOC:
+      ret = pre_rm_alloc(cmd, arg, success);
+      break;
+    default:
+      break;
+  }
+
   return ret;
 }
 
@@ -211,6 +240,45 @@ finish:
   return ret;
 }
 
+int post_memory_rm_alloc(NVOS21_PARAMETERS *pApi) {
+  int ret = 0;
+  device_mem_t *entry = NULL;
+  NV_MEMORY_ALLOCATION_PARAMS *params = NULL;
+
+  if (unlikely(pApi->status != NV_OK)) {
+    goto finish;
+  }
+
+  params = pApi->pAllocParms;
+
+  if (unlikely(params->alignment == 0)) {
+    goto finish;
+  }
+
+  pthread_mutex_lock(&gpu_device.mu);
+  entry = malloc(sizeof(device_mem_t));
+  if (unlikely(!entry)) {
+    ret = -ENOMEM;
+    goto finish;
+  }
+
+  entry->object = params->owner;
+  entry->size = params->size;
+  list_add(&entry->node, &gpu_device.heap_mem_list);
+
+  gpu_device.fb_info->free_mem -= entry->size;
+  gpu_device.alloc_mem += entry->size;
+  pthread_mutex_unlock(&gpu_device.mu);
+
+#ifndef NDEBUG
+  LOGGER(VERBOSE, "alloc from rm: %p, size: %lu, use: %lu", params->owner,
+         params->size, gpu_device.alloc_mem);
+#endif
+
+finish:
+  return ret;
+}
+
 int post_rm_alloc(uint32_t minor, size_t arg_size, void *arg) {
   int ret = 0;
   NVOS21_PARAMETERS *pApi = arg;
@@ -227,6 +295,9 @@ int post_rm_alloc(uint32_t minor, size_t arg_size, void *arg) {
     case NV20_SUBDEVICE_0:
       ret = post_ctrl_rm_alloc(pApi);
       break;
+    case NV01_MEMORY_LOCAL_USER:
+      ret = post_memory_rm_alloc(pApi);
+      break;
     default:
       break;
   }
@@ -234,7 +305,7 @@ int post_rm_alloc(uint32_t minor, size_t arg_size, void *arg) {
   return ret;
 }
 
-int vid_heap_alloc(NVOS32_PARAMETERS *pApi) {
+int post_vid_heap_alloc(NVOS32_PARAMETERS *pApi) {
   int ret = 0;
   device_mem_t *entry = NULL;
 
@@ -284,18 +355,13 @@ int post_rm_vid_heap_control(uint32_t minor, size_t arg_size, void *arg) {
     goto finish;
   }
 
-  if (unlikely(arg_size != sizeof(NVOS32_PARAMETERS))) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
   switch (pApi->function) {
     case NVOS32_FUNCTION_ALLOC_SIZE:
 #ifndef NDEBUG
       LOGGER(VERBOSE, "vid heap alloc parent: %p, root: %p",
              pApi->hObjectParent, pApi->hRoot);
 #endif
-      ret = vid_heap_alloc(pApi);
+      ret = post_vid_heap_alloc(pApi);
       break;
     default:
       break;
@@ -449,11 +515,6 @@ int post_rm_control(uint32_t minor, size_t arg_size, void *arg) {
     goto finish;
   }
 
-  if (unlikely(arg_size != sizeof(NVOS54_PARAMETERS))) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
   if (unlikely(pApi->status != NV_OK)) {
     goto finish;
   }
@@ -516,8 +577,8 @@ void free_heap_page(uint32_t page) {
     gpu_device.alloc_mem -= entry->size;
 
 #ifndef NDEBUG
-    LOGGER(VERBOSE, "free heap page: 0x%x, use: %lu", entry->object,
-           gpu_device.alloc_mem);
+    LOGGER(VERBOSE, "free heap page: 0x%x, size: %lu, use: %lu", entry->object,
+           entry->size, gpu_device.alloc_mem);
 #endif
 
     list_del(&entry->node);
@@ -532,11 +593,6 @@ int post_rm_free(uint32_t minor, size_t arg_size, void *arg) {
   NVOS00_PARAMETERS *pApi = arg;
 
   if (unlikely(minor != NVIDIA_CTL_MINOR)) {
-    ret = -EINVAL;
-    goto finish;
-  }
-
-  if (unlikely(arg_size != sizeof(NVOS00_PARAMETERS))) {
     ret = -EINVAL;
     goto finish;
   }
